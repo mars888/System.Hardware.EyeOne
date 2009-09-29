@@ -1,0 +1,13 @@
+Name:             EyeOne
+Version:          0.5
+Description:      Interface for EyeOne colorimeter
+License:          GPL
+Author:           Marcel Strik
+Build-Type:       Simple
+Cabal-Version:    >= 1.2
+
+Library
+    Build-Depends:   base
+    Exposed-modules: System.Hardware.EyeOne
+    ghc-options:     -Wall
+    hs-source-dirs:  src
