@@ -23,6 +23,8 @@ module System.Hardware.EyeOne (
 , connected
 , keyPressed
 , triggerMeasurement
+, getNumberOfAvailableSamples
+, getSpectrum
 , calibrate
 , setOption
 , getOption
@@ -30,12 +32,16 @@ module System.Hardware.EyeOne (
 , extendedErrorInformation
   -- * Setters
 , setMeasurementMode
+, setIlluminationKey
+, setColorSpaceKey
+, setObserverKey
+, setWhiteBaseKey
 ) where
 
 import Foreign.C
 import Foreign.C.String
 import Foreign.Ptr
-import Foreign.Marshal.Array
+import Foreign.Marshal.Array (peekArray, mallocArray)
 import Control.Monad
 
 -- | Number of samples that will appear in a spectral measurement.
@@ -266,14 +272,14 @@ triggerMeasurement = fromErrorM c_I1_TriggerMeasurement
 getNumberOfAvailableSamples :: IO Integer
 getNumberOfAvailableSamples = liftM fromIntegral c_I1_GetNumberOfAvailableSamples
 
+getSpectrum :: Int -> IO [Float]
 getSpectrum sampleIndex = do
     itemsPtr <- makeArray
-    returnCode <- c_I1_GetSpectrum itemsPtr sampleIndex
+    returnCode <- c_I1_GetSpectrum itemsPtr (fromIntegral sampleIndex)
     samples <- peekArray spectrumSize itemsPtr
-    return samples
+    return (map realToFrac samples)
     where makeArray :: IO (Ptr CFloat)
           makeArray = mallocArray spectrumSize
-    -- c_I1_GetSpectrum
 
 calibrate :: IO EyeOneErrorType
 calibrate = fromErrorM c_I1_Calibrate
@@ -289,7 +295,7 @@ getOption opt = do
     withCString (toOption opt) $ \optStr -> do
         res <- c_I1_GetOption optStr
         peekCString res
-        
+
 lastError :: IO String
 lastError = getOption LastError
 
