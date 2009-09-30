@@ -1,7 +1,8 @@
 -- vim: fdm=marker
 module System.Hardware.EyeOne (
   -- * Useful constants
-  spectrumSize
+  SampleIndex
+, spectrumSize
 , minWaveLength
 , maxWaveLength
   -- * Types
@@ -12,6 +13,7 @@ module System.Hardware.EyeOne (
 , triggerMeasurement
 , getNumberOfAvailableSamples
 , getSpectrum
+, getTriStimulus
 , calibrate
 , setOption
 , getOption
@@ -33,6 +35,10 @@ import Control.Monad
 
 import System.Hardware.EyeOne.Types
 import System.Hardware.EyeOne.C
+
+-- | Used for choosing which sample array to return when more samples are
+-- measured (index starts at 0).
+type SampleIndex = Int
 
 -- | Number of samples that will appear in a spectral measurement.
 spectrumSize :: Int
@@ -86,13 +92,29 @@ triggerMeasurement = fromErrorM c_I1_TriggerMeasurement
 getNumberOfAvailableSamples :: IO Integer
 getNumberOfAvailableSamples = liftM fromIntegral c_I1_GetNumberOfAvailableSamples
 
-getSpectrum :: Int -> IO (Either EyeOneErrorType [Float])
-getSpectrum sampleIndex = do
-    itemsPtr <- makeArray spectrumSize
-    returnCode <- fromErrorM $ c_I1_GetSpectrum itemsPtr (fromIntegral sampleIndex)
+getData :: (Ptr CFloat -> CLong -> IO CInt)
+           -- ^ Data function to use. Will take a 'CFloat' array of @sampleSize@
+           -- and a 'CLong' to indicate the number of samples the array should
+           -- be able to take.
+           -- The function should return an int which can be transformed into an
+           -- 'EyeOneErrorType'
+        -> Int
+           -- ^ Number of samples to inspect.
+        -> SampleIndex
+           -- ^ Index of the sample to return.
+        -> IO (Either EyeOneErrorType [Float])
+getData dataFun sampleSize sampleIndex = do
+    itemsPtr <- makeArray sampleSize
+    returnCode <- fromErrorM $ dataFun itemsPtr (fromIntegral sampleIndex)
     case returnCode of
-        NoError -> return . Right . map realToFrac =<< peekArray spectrumSize itemsPtr
+        NoError -> return . Right . map realToFrac =<< peekArray sampleSize itemsPtr
         code    -> return . Left $ code
+
+getSpectrum :: SampleIndex -> IO (Either EyeOneErrorType [Float])
+getSpectrum = getData c_I1_GetSpectrum spectrumSize
+
+getTriStimulus :: SampleIndex -> IO (Either EyeOneErrorType [Float])
+getTriStimulus = getData c_I1_GetTriStimulus 3
 
 -- | Create a new array with specified size as a (Ptr CFloat).
 makeArray :: Int -> IO (Ptr CFloat)
