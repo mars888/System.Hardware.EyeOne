@@ -1,1 +1,5 @@
+On Windows
 Requires EyeOne.h and EyeOne.dll from EyeOne SDK to use.
+
+On OS X
+Requires i1C framework to use.
